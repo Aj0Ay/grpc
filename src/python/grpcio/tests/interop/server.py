@@ -33,11 +33,11 @@ import argparse
 import logging
 import time
 
+from gen.src.proto.grpc.testing import test_pb2
 from grpc.beta import implementations
 
 from tests.interop import methods
 from tests.interop import resources
-from tests.interop import test_pb2
 
 _ONE_DAY_IN_SECONDS = 60 * 60 * 24
 

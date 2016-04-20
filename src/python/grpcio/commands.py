@@ -50,6 +50,7 @@ from setuptools.command import test
 import support
 
 PYTHON_STEM = os.path.dirname(os.path.abspath(__file__))
+GRPC_STEM = os.path.abspath(PYTHON_STEM + "../../../../")
 
 CONF_PY_ADDENDUM = """
 extensions.append('sphinx.ext.napoleon')
@@ -57,6 +58,17 @@ napoleon_google_docstring = True
 napoleon_numpy_docstring = True
 
 html_theme = 'sphinx_rtd_theme'
+"""
+
+# This is the main __init__.py file in the generated
+# proto directory.  Externally we want to import these files as gen.src.proto...,
+# But internally they are refrenced as src.proto...
+# TODO(kpayson) decide if we want to manually add proto_gen_stem to the PYTHON_PATH
+# on scripts using generated protos to avoid this
+PROTO_GEN_INIT = """
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 """
 
 
@@ -157,30 +169,47 @@ class BuildProtoModules(setuptools.Command):
     if not self.grpc_python_plugin_command:
       raise CommandError('could not find grpc_python_plugin '
                          '(protoc plugin for GRPC Python)')
+
+    proto_stem =  os.path.join(GRPC_STEM, 'src', 'proto')
+    proto_gen_stem = os.path.join(PYTHON_STEM, 'gen')
+
+    if not os.path.exists(proto_gen_stem):
+      os.makedirs(proto_gen_stem)
+
     include_regex = re.compile(self.include)
     exclude_regex = re.compile(self.exclude) if self.exclude else None
     paths = []
-    root_directory = PYTHON_STEM
-    for walk_root, directories, filenames in os.walk(root_directory):
+    for walk_root, directories, filenames in os.walk(proto_stem):
       for filename in filenames:
         path = os.path.join(walk_root, filename)
         if include_regex.match(path) and not (
             exclude_regex and exclude_regex.match(path)):
           paths.append(path)
+
     command = [
         self.protoc_command,
         '--plugin=protoc-gen-python-grpc={}'.format(
             self.grpc_python_plugin_command),
-        '-I {}'.format(root_directory),
-        '--python_out={}'.format(root_directory),
-        '--python-grpc_out={}'.format(root_directory),
+        '-I {}'.format(GRPC_STEM),
+        '--python_out={}'.format(proto_gen_stem),
+        '--python-grpc_out={}'.format(proto_gen_stem),
     ] + paths
     try:
-      subprocess.check_output(' '.join(command), cwd=root_directory, shell=True,
+      subprocess.check_output(' '.join(command), cwd=PYTHON_STEM, shell=True,
                               stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
       raise CommandError('Command:\n{}\nMessage:\n{}\nOutput:\n{}'.format(
           command, e.message, e.output))
+
+    for walk_root, _, _ in os.walk(proto_gen_stem):
+      path = os.path.join(walk_root, '__init__.py')
+      open(path, 'a').close()
+    with open(os.path.join(proto_gen_stem, '__init__.py'), 'w') as f:
+      f.write(PROTO_GEN_INIT)
+    
+    proto_stem =  os.path.join(GRPC_STEM, 'src', 'proto')
+    proto_gen_stem = os.path.join(PYTHON_STEM, 'gen')
+
 
 
 class BuildProjectMetadata(setuptools.Command):
