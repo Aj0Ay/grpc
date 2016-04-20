@@ -186,20 +186,23 @@ class BuildProtoModules(setuptools.Command):
             exclude_regex and exclude_regex.match(path)):
           paths.append(path)
 
-    command = [
-        self.protoc_command,
-        '--plugin=protoc-gen-python-grpc={}'.format(
-            self.grpc_python_plugin_command),
-        '-I {}'.format(GRPC_STEM),
-        '--python_out={}'.format(proto_gen_stem),
-        '--python-grpc_out={}'.format(proto_gen_stem),
-    ] + paths
-    try:
-      subprocess.check_output(' '.join(command), cwd=PYTHON_STEM, shell=True,
+    # TODO(kpayson) it would be nice to do this in a batch command, 
+    # but we currently have name conflicts in src/proto
+    for path in paths: 
+      command = [
+          self.protoc_command,
+          '--plugin=protoc-gen-python-grpc={}'.format(
+             self.grpc_python_plugin_command),
+          '-I {}'.format(GRPC_STEM),
+          '--python_out={}'.format(proto_gen_stem),
+          '--python-grpc_out={}'.format(proto_gen_stem),
+      ] + [path]
+      try:
+        subprocess.check_output(' '.join(command), cwd=PYTHON_STEM, shell=True,
                               stderr=subprocess.STDOUT)
-    except subprocess.CalledProcessError as e:
-      raise CommandError('Command:\n{}\nMessage:\n{}\nOutput:\n{}'.format(
-          command, e.message, e.output))
+      except subprocess.CalledProcessError as e:
+        raise CommandError('Command:\n{}\nMessage:\n{}\nOutput:\n{}'.format(
+            command, e.message, e.output))
 
     for walk_root, _, _ in os.walk(proto_gen_stem):
       path = os.path.join(walk_root, '__init__.py')
