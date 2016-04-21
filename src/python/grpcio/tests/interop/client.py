@@ -31,8 +31,8 @@
 import argparse
 from oauth2client import client as oauth2client_client
 
-from gen.src.proto.grpc.testing import test_pb2
 from grpc.beta import implementations
+from src.proto.grpc.testing import test_pb2
 
 from tests.interop import methods
 from tests.interop import resources

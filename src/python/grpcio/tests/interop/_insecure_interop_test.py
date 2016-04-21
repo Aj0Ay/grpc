@@ -31,8 +31,8 @@
 
 import unittest
 
-from gen.src.proto.grpc.testing import test_pb2
 from grpc.beta import implementations
+from src.proto.grpc.testing import test_pb2
 
 from tests.interop import _interop_test_case
 from tests.interop import methods

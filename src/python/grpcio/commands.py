@@ -60,18 +60,6 @@ napoleon_numpy_docstring = True
 html_theme = 'sphinx_rtd_theme'
 """
 
-# This is the main __init__.py file in the generated
-# proto directory.  Externally we want to import these files as gen.src.proto...,
-# But internally they are refrenced as src.proto...
-# TODO(kpayson) decide if we want to manually add proto_gen_stem to the PYTHON_PATH
-# on scripts using generated protos to avoid this
-PROTO_GEN_INIT = """
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-"""
-
-
 class CommandError(Exception):
   """Simple exception class for GRPC custom commands."""
 
@@ -171,8 +159,7 @@ class BuildProtoModules(setuptools.Command):
                          '(protoc plugin for GRPC Python)')
 
     proto_stem =  os.path.join(GRPC_STEM, 'src', 'proto')
-    proto_gen_stem = os.path.join(PYTHON_STEM, 'gen')
-
+    proto_gen_stem = os.path.join(GRPC_STEM, 'src', 'python', 'gens')
     if not os.path.exists(proto_gen_stem):
       os.makedirs(proto_gen_stem)
 
@@ -201,19 +188,15 @@ class BuildProtoModules(setuptools.Command):
         subprocess.check_output(' '.join(command), cwd=PYTHON_STEM, shell=True,
                               stderr=subprocess.STDOUT)
       except subprocess.CalledProcessError as e:
-        raise CommandError('Command:\n{}\nMessage:\n{}\nOutput:\n{}'.format(
+        sys.stderr.write('warning: Command:\n{}\nMessage:\n{}\nOutput:\n{}'.format(
             command, e.message, e.output))
 
+    # Generated proto directories dont include __init__.py, but
+    # these are needed for python package resolution
     for walk_root, _, _ in os.walk(proto_gen_stem):
-      path = os.path.join(walk_root, '__init__.py')
-      open(path, 'a').close()
-    with open(os.path.join(proto_gen_stem, '__init__.py'), 'w') as f:
-      f.write(PROTO_GEN_INIT)
-    
-    proto_stem =  os.path.join(GRPC_STEM, 'src', 'proto')
-    proto_gen_stem = os.path.join(PYTHON_STEM, 'gen')
-
-
+      if walk_root != proto_gen_stem:
+        path = os.path.join(walk_root, '__init__.py')
+        open(path, 'a').close()
 
 class BuildProjectMetadata(setuptools.Command):
   """Command to generate project metadata in a module."""
